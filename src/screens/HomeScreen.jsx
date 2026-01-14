@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTelegramWebApp, useHapticFeedback } from '../hooks/useTelegramWebApp';
-import { getCatalogItems, getCategories } from '../utils/mockData';
+import useProducts from '../hooks/useProducts';
 import './HomeScreen.css';
 
 export const HomeScreen = () => {
@@ -9,25 +9,30 @@ export const HomeScreen = () => {
   const { user } = useTelegramWebApp();
   const { impactOccurred, selectionChanged } = useHapticFeedback();
   
-  const [categories, setCategories] = useState([]);
-  const [activeCategory, setActiveCategory] = useState('all');
-  const [items, setItems] = useState([]);
+  const {
+    products,
+    categories,
+    activeCategory,
+    loading,
+    searchQuery,
+    setSearchQuery,
+    handleCategoryChange: changeCategory,
+    getFilteredProducts,
+  } = useProducts();
+
   const [displayedItems, setDisplayedItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
   const ITEMS_PER_PAGE = 6;
 
+  // Инициализируем отображаемые товары
   useEffect(() => {
-    loadInitialData();
-  }, []);
+    const filtered = getFilteredProducts(searchQuery);
+    setDisplayedItems(filtered.slice(0, ITEMS_PER_PAGE));
+    setPage(1);
+  }, [products, searchQuery, getFilteredProducts]);
 
+  // Infinite scroll
   useEffect(() => {
-    loadItems();
-  }, [activeCategory]);
-
-  useEffect(() => {
-    // Infinite scroll
     const handleScroll = () => {
       if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 500) {
         loadMoreItems();
@@ -36,36 +41,14 @@ export const HomeScreen = () => {
 
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [items, displayedItems]);
-
-  const loadInitialData = async () => {
-    try {
-      const categoriesData = await getCategories();
-      setCategories(categoriesData);
-    } catch (error) {
-      console.error('Error loading categories:', error);
-    }
-  };
-
-  const loadItems = async () => {
-    setLoading(true);
-    try {
-      const data = await getCatalogItems({ filter: activeCategory });
-      setItems(data);
-      setDisplayedItems(data.slice(0, ITEMS_PER_PAGE));
-      setPage(1);
-    } catch (error) {
-      console.error('Error loading items:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [products, displayedItems, page, searchQuery]);
 
   const loadMoreItems = () => {
+    const filtered = getFilteredProducts(searchQuery);
     const nextPage = page + 1;
     const startIndex = page * ITEMS_PER_PAGE;
     const endIndex = startIndex + ITEMS_PER_PAGE;
-    const newItems = items.slice(startIndex, endIndex);
+    const newItems = filtered.slice(startIndex, endIndex);
     
     if (newItems.length > 0) {
       setDisplayedItems(prev => [...prev, ...newItems]);
@@ -75,22 +58,20 @@ export const HomeScreen = () => {
 
   const handleCategoryChange = (categoryId) => {
     selectionChanged();
-    setActiveCategory(categoryId);
+    changeCategory(categoryId);
   };
 
   const handleSearch = (e) => {
     setSearchQuery(e.target.value);
   };
 
+  const filteredItems = getFilteredProducts(searchQuery);
+
   const handleItemClick = (itemId) => {
     impactOccurred('light');
     navigate(`/item/${itemId}`);
   };
 
-  const filteredItems = displayedItems.filter(item =>
-    item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.description.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
   return (
     <div className="home-screen">
@@ -207,7 +188,7 @@ export const HomeScreen = () => {
                 </div>
               )}
 
-              {filteredItems.length < items.length && (
+              {displayedItems.length < filteredItems.length && (
                 <div className="loading-more">
                   <div className="spinner-small"></div>
                   <p>Загрузка...</p>

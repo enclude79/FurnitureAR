@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Supabase Connection Test</title>
+</head>
+<body>
+    <h1>Supabase Connection Test</h1>
+    <div id="status">Checking...</div>
+    <pre id="result"></pre>
+
+    <script type="module">
+        const SUPABASE_URL = 'https://shofuovyxd.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNob2Z1b3Z5eGQiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTczNjgyNzcyNCwiZXhwIjoyMDUyMzgzNzI0fQ.KDkXBNu54tmK-h0sjHA_MCU4GVKV';
+
+        async function testConnection() {
+            const statusDiv = document.getElementById('status');
+            const resultDiv = document.getElementById('result');
+            
+            try {
+                statusDiv.innerHTML = '✅ Testing connection to Supabase...';
+                
+                // Test 1: Get categories
+                const categoriesResponse = await fetch(`${SUPABASE_URL}/rest/v1/categories?select=*`, {
+                    headers: {
+                        'apikey': SUPABASE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_KEY}`
+                    }
+                });
+                
+                if (!categoriesResponse.ok) {
+                    throw new Error(`Categories request failed: ${categoriesResponse.status} ${categoriesResponse.statusText}`);
+                }
+                
+                const categories = await categoriesResponse.json();
+                
+                // Test 2: Get products
+                const productsResponse = await fetch(`${SUPABASE_URL}/rest/v1/products?select=*&limit=5`, {
+                    headers: {
+                        'apikey': SUPABASE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_KEY}`
+                    }
+                });
+                
+                if (!productsResponse.ok) {
+                    throw new Error(`Products request failed: ${productsResponse.status} ${productsResponse.statusText}`);
+                }
+                
+                const products = await productsResponse.json();
+                
+                // Display results
+                statusDiv.innerHTML = '✅ SUCCESS! Connection works!';
+                resultDiv.textContent = JSON.stringify({
+                    categories_count: categories.length,
+                    categories: categories,
+                    products_count: products.length,
+                    products: products
+                }, null, 2);
+                
+            } catch (error) {
+                statusDiv.innerHTML = '❌ ERROR: ' + error.message;
+                resultDiv.textContent = error.stack;
+            }
+        }
+        
+        testConnection();
+    </script>
+</body>
+</html>

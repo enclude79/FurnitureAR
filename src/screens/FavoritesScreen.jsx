@@ -1,35 +1,22 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useHapticFeedback } from '../hooks/useTelegramWebApp';
-import { getFavoriteItems } from '../utils/mockData';
+import { useHapticFeedback, useTelegramWebApp } from '../hooks/useTelegramWebApp';
+import useFavorites from '../hooks/useFavorites';
 import './FavoritesScreen.css';
 
 export const FavoritesScreen = () => {
   const navigate = useNavigate();
+  const { user } = useTelegramWebApp();
   const { impactOccurred, notificationOccurred } = useHapticFeedback();
-  const [favorites, setFavorites] = useState([]);
-  const [loading, setLoading] = useState(true);
+  
+  const { favorites, loading, removeFromFavorites } = useFavorites(user?.id);
 
-  useEffect(() => {
-    loadFavorites();
-  }, []);
-
-  const loadFavorites = async () => {
-    setLoading(true);
-    try {
-      const data = await getFavoriteItems();
-      setFavorites(data);
-    } catch (error) {
-      console.error('Error loading favorites:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const removeFavorite = (itemId, e) => {
+  const removeFavorite = (itemId, itemTitle, e) => {
     e.stopPropagation();
     notificationOccurred('warning');
-    setFavorites(prev => prev.filter(item => item.id !== itemId));
+    if (user?.id) {
+      removeFromFavorites(itemId, itemTitle);
+    }
   };
 
   const handleItemClick = (itemId) => {
@@ -80,12 +67,12 @@ export const FavoritesScreen = () => {
                     alt={item.title}
                     className="item-image"
                   />
-                  {item.onSale && (
+                  {item.on_sale && (
                     <div className="item-badge sale-badge">Скидка</div>
                   )}
                   <button
                     className="favorite-button active"
-                    onClick={(e) => removeFavorite(item.id, e)}
+                    onClick={(e) => removeFavorite(item.id, item.title, e)}
                     aria-label="Убрать из избранного"
                   >
                     ♥
@@ -97,9 +84,9 @@ export const FavoritesScreen = () => {
                   <p className="item-description">{item.description}</p>
                   <div className="item-price-container">
                     <span className="item-price">{item.price.toLocaleString('ru-RU')} ₽</span>
-                    {item.originalPrice && (
+                    {item.original_price && (
                       <span className="item-original-price">
-                        {item.originalPrice.toLocaleString('ru-RU')} ₽
+                        {item.original_price.toLocaleString('ru-RU')} ₽
                       </span>
                     )}
                   </div>

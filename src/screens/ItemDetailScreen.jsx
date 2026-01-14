@@ -1,18 +1,22 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useHapticFeedback, useBackButton } from '../hooks/useTelegramWebApp';
-import { getItemDetails } from '../utils/mockData';
+import { useHapticFeedback, useBackButton, useTelegramWebApp } from '../hooks/useTelegramWebApp';
+import useProducts from '../hooks/useProducts';
+import useFavorites from '../hooks/useFavorites';
 import './ItemDetailScreen.css';
 
 export const ItemDetailScreen = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useTelegramWebApp();
   const { impactOccurred, notificationOccurred } = useHapticFeedback();
+  
+  const { getProductById } = useProducts();
+  const { isFavorite, toggleFavorite } = useFavorites(user?.id);
   
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(0);
-  const [isFavorite, setIsFavorite] = useState(false);
   const [quantity, setQuantity] = useState(1);
 
   // Back button
@@ -25,7 +29,7 @@ export const ItemDetailScreen = () => {
   const loadItemDetails = async () => {
     setLoading(true);
     try {
-      const data = await getItemDetails(parseInt(id));
+      const data = await getProductById(parseInt(id));
       setItem(data);
     } catch (error) {
       console.error('Error loading item:', error);
@@ -34,9 +38,11 @@ export const ItemDetailScreen = () => {
     }
   };
 
-  const toggleFavorite = () => {
+  const handleToggleFavorite = () => {
     impactOccurred('medium');
-    setIsFavorite(!isFavorite);
+    if (user?.id && item) {
+      toggleFavorite(item.id, item.title);
+    }
   };
 
   const handleAddToCart = () => {
@@ -90,16 +96,16 @@ export const ItemDetailScreen = () => {
             className="main-image"
           />
           <button 
-            className={`favorite-button ${isFavorite ? 'active' : ''}`}
-            onClick={toggleFavorite}
-            aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+            className={`favorite-button ${isFavorite(item.id) ? 'active' : ''}`}
+            onClick={handleToggleFavorite}
+            aria-label={isFavorite(item.id) ? 'Remove from favorites' : 'Add to favorites'}
           >
-            {isFavorite ? '♥' : '♡'}
+            {isFavorite(item.id) ? '♥' : '♡'}
           </button>
-          {item.onSale && (
+          {item.on_sale && (
             <div className="sale-badge">Sale</div>
           )}
-          {item.isNew && (
+          {item.is_new && (
             <div className="new-badge">New</div>
           )}
         </div>

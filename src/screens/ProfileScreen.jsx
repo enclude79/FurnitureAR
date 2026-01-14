@@ -1,31 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTelegramWebApp, useHapticFeedback } from '../hooks/useTelegramWebApp';
-import { getUserProfile } from '../utils/mockData';
+import useUser from '../hooks/useUser';
 import './ProfileScreen.css';
 
 export const ProfileScreen = () => {
   const navigate = useNavigate();
   const { user } = useTelegramWebApp();
   const { impactOccurred } = useHapticFeedback();
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
+  
+  const { stats, loading, initializeUser } = useUser();
 
   useEffect(() => {
-    loadProfile();
-  }, []);
-
-  const loadProfile = async () => {
-    setLoading(true);
-    try {
-      const data = await getUserProfile();
-      setProfile(data);
-    } catch (error) {
-      console.error('Error loading profile:', error);
-    } finally {
-      setLoading(false);
+    if (user) {
+      initializeUser(user);
     }
-  };
+  }, [user, initializeUser]);
 
   const menuItems = [
     { id: 'edit', label: 'Редактировать профиль', icon: '✏️', path: '/profile/edit' },
@@ -70,8 +60,8 @@ export const ProfileScreen = () => {
         {user?.username && (
           <p className="profile-username">@{user.username}</p>
         )}
-        {profile?.level && (
-          <div className="profile-level">{profile.level}</div>
+        {stats?.level && (
+          <div className="profile-level">{stats.level}</div>
         )}
       </header>
 
@@ -79,24 +69,24 @@ export const ProfileScreen = () => {
         <section className="profile-stats">
           <div className="stat-row">
             <span className="stat-label">С нами с</span>
-            <span className="stat-value">{profile?.joined || 'Январь 2024'}</span>
+            <span className="stat-value">{stats?.created_at ? new Date(stats.created_at).toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' }) : 'Январь 2024'}</span>
           </div>
           <div className="stat-row">
             <span className="stat-label">Всего заказов</span>
-            <span className="stat-value">{profile?.totalItems || 0}</span>
+            <span className="stat-value">{stats?.total_items || 0}</span>
           </div>
           <div className="stat-row">
             <span className="stat-label">Отметок "нравится"</span>
-            <span className="stat-value">{profile?.totalLikes || 0}</span>
+            <span className="stat-value">{stats?.total_likes || 0}</span>
           </div>
           <div className="stat-row">
             <span className="stat-label">Отзывов написано</span>
-            <span className="stat-value">{profile?.totalReviews || 0}</span>
+            <span className="stat-value">{stats?.total_reviews || 0}</span>
           </div>
-          {profile?.points !== undefined && (
+          {stats?.points !== undefined && (
             <div className="stat-row">
               <span className="stat-label">Баллы</span>
-              <span className="stat-value highlight">{profile.points} б</span>
+              <span className="stat-value highlight">{stats.points} б</span>
             </div>
           )}
         </section>

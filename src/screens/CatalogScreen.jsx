@@ -1,18 +1,27 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useHapticFeedback } from '../hooks/useTelegramWebApp';
-import { getCatalogItems } from '../utils/mockData';
+import useProducts from '../hooks/useProducts';
+import useFavorites from '../hooks/useFavorites';
+import { useTelegramWebApp } from '../hooks/useTelegramWebApp';
 import './CatalogScreen.css';
 
 export const CatalogScreen = () => {
   const navigate = useNavigate();
+  const { user } = useTelegramWebApp();
   const { impactOccurred, selectionChanged } = useHapticFeedback();
   
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState('all');
-  const [items, setItems] = useState([]);
-  const [favorites, setFavorites] = useState(new Set());
-  const [loading, setLoading] = useState(true);
+  const {
+    products,
+    activeFilter,
+    searchQuery,
+    loading,
+    setSearchQuery,
+    handleFilterChange,
+    getFilteredProducts,
+  } = useProducts();
+
+  const { favoriteIds, toggleFavorite, isFavorite } = useFavorites(user?.id);
 
   const filters = [
     { id: 'all', label: 'Все' },
@@ -21,45 +30,22 @@ export const CatalogScreen = () => {
     { id: 'popular', label: 'Популярное' }
   ];
 
-  useEffect(() => {
-    loadItems();
-  }, [activeFilter]);
-
-  const loadItems = async () => {
-    setLoading(true);
-    
-    try {
-      const data = await getCatalogItems({ filter: activeFilter });
-      setItems(data);
-    } catch (error) {
-      console.error('Error loading catalog:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const toggleFavorite = useCallback((itemId, e) => {
+  const handleToggleFavorite = useCallback((itemId, itemTitle, e) => {
     e.stopPropagation();
     impactOccurred('light');
     
-    setFavorites(prev => {
-      const newFavorites = new Set(prev);
-      if (newFavorites.has(itemId)) {
-        newFavorites.delete(itemId);
-      } else {
-        newFavorites.add(itemId);
-      }
-      return newFavorites;
-    });
-  }, [impactOccurred]);
+    if (user?.id) {
+      toggleFavorite(itemId, itemTitle);
+    }
+  }, [user?.id, toggleFavorite, impactOccurred]);
 
   const handleSearch = (e) => {
     setSearchQuery(e.target.value);
   };
 
-  const handleFilterChange = (filterId) => {
+  const handleFilterChangeWithFeedback = (filterId) => {
     selectionChanged();
-    setActiveFilter(filterId);
+    handleFilterChange(filterId);
   };
 
   const handleItemClick = (itemId) => {
@@ -103,7 +89,7 @@ export const CatalogScreen = () => {
             <button
               key={filter.id}
               className={`filter-chip ${activeFilter === filter.id ? 'active' : ''}`}
-              onClick={() => handleFilterChange(filter.id)}
+              onClick={() => handleFilterChangeWithFeedback(filter.id)}
               aria-label={`Фильтр ${filter.label}`}
               aria-pressed={activeFilter === filter.id}
             >
@@ -122,7 +108,7 @@ export const CatalogScreen = () => {
           </div>
         ) : (
           <div className="items-grid">
-            {filteredItems.map(item => (
+            {getFilteredProducts(searchQuery).map(item => (
               <div 
                 key={item.id} 
                 className="item-card"
@@ -139,18 +125,18 @@ export const CatalogScreen = () => {
                     alt={item.title}
                     className="item-image"
                   />
-                  {item.onSale && (
+                  {item.on_sale && (
                     <div className="item-badge sale-badge">Скидка</div>
                   )}
-                  {item.isNew && (
+                  {item.is_new && (
                     <div className="item-badge new-badge">Новинка</div>
                   )}
                   <button
-                    className={`favorite-button ${favorites.has(item.id) ? 'active' : ''}`}
-                    onClick={(e) => toggleFavorite(item.id, e)}
-                    aria-label={favorites.has(item.id) ? 'Убрать из избранного' : 'Добавить в избранное'}
+                    className={`favorite-button ${isFavorite(item.id) ? 'active' : ''}`}
+                    onClick={(e) => handleToggleFavorite(item.id, item.title, e)}
+                    aria-label={isFavorite(item.id) ? 'Убрать из избранного' : 'Добавить в избранное'}
                   >
-                    {favorites.has(item.id) ? '♥' : '♡'}
+                    {isFavorite(item.id) ? '♥' : '♡'}
                   </button>
                 </div>
                 
@@ -177,7 +163,7 @@ export const CatalogScreen = () => {
           </div>
         )}
 
-        {!loading && filteredItems.length === 0 && (
+        {!loading && getFilteredProducts(searchQuery).length === 0 && (
           <div className="empty-state">
             <div className="empty-icon">🔍</div>
             <h3>Ничего не найдено</h3>
@@ -186,7 +172,7 @@ export const CatalogScreen = () => {
               className="reset-button"
               onClick={() => {
                 setSearchQuery('');
-                setActiveFilter('all');
+                handleFilterChange('all');
               }}
             >
               Сбросить фильтры
